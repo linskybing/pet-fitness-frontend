@@ -93,7 +93,7 @@ const Travel = () => {
       <div className="max-w-md mx-auto space-y-4">
         <Button
           variant="ghost"
-          onClick={() => navigate("/")}
+          onClick={() => navigate(-1)}
           className="mb-4"
           style={{ color: 'var(--tp-primary-700)' }}
         >
@@ -102,7 +102,7 @@ const Travel = () => {
         </Button>
 
         <div className="tp-h2-semibold" style={{ color: 'var(--tp-primary-700)' }}>
-          旅遊突破
+          台北市打卡清單
         </div>
 
         {selectedLandmark && (
@@ -162,49 +162,41 @@ const Travel = () => {
         )}
 
         <Card className="p-6 space-y-4" style={{ backgroundColor: 'var(--tp-white)', borderColor: 'var(--tp-primary-200)' }}>
-          <h3 className="tp-h3-semibold" style={{ color: 'var(--tp-grayscale-800)' }}>
-            台北運動景點
-          </h3>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2 px-1 text-xs text-muted-foreground border-b pb-2">
+            <div>地點名稱</div>
+            <div className="text-right">獎勵內容</div>
+          </div>
+          <div className="space-y-2 pt-2">
             {landmarks.map((landmark, index) => (
               <div
                 key={index}
-                className="rounded-lg p-3 cursor-pointer transition-all hover:shadow-md"
+                role="button"
+                tabIndex={0}
+                title={landmark.description}
+                aria-label={`選擇 ${landmark.name}，獎勵：${getBonusText(landmark.bonus)}`}
+                className="rounded-lg p-3 cursor-pointer transition-all hover:shadow-md flex items-start justify-between focus:outline-none focus:ring-2 focus:ring-offset-1"
                 style={{ 
                   backgroundColor: selectedLandmark?.name === landmark.name 
                     ? 'var(--tp-primary-100)' 
                     : 'var(--tp-grayscale-50)',
-                  borderLeft: `4px solid ${landmark.category === '運動場館' ? 'var(--tp-secondary-500)' : 'var(--tp-primary-500)'}`
+                  borderLeft: `4px solid var(--tp-primary-500)`
                 }}
                 onClick={() => setSelectedLandmark(landmark)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedLandmark(landmark);
+                  }
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="tp-body-semibold" style={{ color: 'var(--tp-grayscale-800)' }}>
-                        {landmark.name}
-                      </div>
-                      <span 
-                        className="tp-caption px-2 py-0.5 rounded"
-                        style={{ 
-                          backgroundColor: landmark.category === '運動場館' 
-                            ? 'var(--tp-secondary-100)' 
-                            : 'var(--tp-primary-100)',
-                          color: landmark.category === '運動場館'
-                            ? 'var(--tp-secondary-700)'
-                            : 'var(--tp-primary-700)'
-                        }}
-                      >
-                        {landmark.category}
-                      </span>
-                    </div>
-                    <div className="tp-caption" style={{ color: 'var(--tp-grayscale-500)' }}>
-                      {landmark.description}
-                    </div>
+                <div className="flex-1">
+                  <div className="tp-body-semibold" style={{ color: 'var(--tp-grayscale-800)' }}>
+                    {landmark.name}
                   </div>
-                  <div className="tp-caption text-right" style={{ color: 'var(--tp-secondary-600)' }}>
-                    {getBonusText(landmark.bonus)}
-                  </div>
+
+                </div>
+                <div className="tp-caption text-right" style={{ color: 'var(--tp-secondary-600)', minWidth: 120 }}>
+                  {getBonusText(landmark.bonus)}
                 </div>
               </div>
             ))}
