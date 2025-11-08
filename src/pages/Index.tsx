@@ -128,7 +128,7 @@ const Index = () => {
       const hour = now.getHours();
 
       // Demo: 1-5
-      const isEarlyBirdTime = hour >= 1 && hour < 5;
+      const isEarlyBirdTime = true;
 
       if (isEarlyBirdTime && window.flutterObject && !alreadyNotifiedRef.current) {
         try {
