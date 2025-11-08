@@ -7,7 +7,7 @@ const API_BASE_URL = "https://back-end-tasw.onrender.com";
 // ==================
 
 export interface User {
-    id: number;
+    id: string;  // TownPass user ID (string)
     created_at: string;
     pet?: Pet;
     exercise_logs?: ExerciseLog[];
@@ -20,7 +20,7 @@ export interface UserCreate {
 
 export interface Pet {
     id: number;
-    owner_id: number;
+    owner_id: string;  // References User.id which is a string
     name: string;
     strength: number;
     stamina: number;
@@ -48,7 +48,7 @@ export interface ExerciseLog {
     duration_seconds: number;
     volume: number;
     created_at: string;
-    user_id: number;
+    user_id: string;  // References User.id which is a string
     pet_id: number;
 }
 
@@ -75,7 +75,7 @@ export interface Quest {
 
 export interface UserQuest {
     id: number;
-    user_id: number;
+    user_id: string;  // References User.id which is a string
     quest_id: number;
     is_completed: boolean;
     date: string;
@@ -110,7 +110,7 @@ export interface BreakthroughResult {
 
 export interface TravelCheckin {
     id: number;
-    user_id: number;
+    user_id: string;  // References User.id which is a string
     quest_id: string;
     completed_at: string;
     lat: number;
@@ -148,7 +148,7 @@ export async function createUser(pet_name: string, townpass_id?: string): Promis
     return response.json();
 }
 
-export async function getUser(userId: number): Promise<User> {
+export async function getUser(userId: string): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}`);
     if (!response.ok) {
         const error = await response.json();
@@ -158,7 +158,7 @@ export async function getUser(userId: number): Promise<User> {
 }
 
 // Pet
-export async function getUserPet(userId: number): Promise<Pet> {
+export async function getUserPet(userId: string): Promise<Pet> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/pet`);
     if (!response.ok) {
         const error = await response.json();
@@ -167,7 +167,7 @@ export async function getUserPet(userId: number): Promise<Pet> {
     return response.json();
 }
 
-export async function updateUserPet(userId: number, petUpdate: PetUpdate): Promise<Pet> {
+export async function updateUserPet(userId: string, petUpdate: PetUpdate): Promise<Pet> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/pet`, {
         method: "PATCH",
         headers: {
@@ -183,7 +183,7 @@ export async function updateUserPet(userId: number, petUpdate: PetUpdate): Promi
 }
 
 // Exercise
-export async function logExercise(userId: number, log: ExerciseLogCreate): Promise<ExerciseResult> {
+export async function logExercise(userId: string, log: ExerciseLogCreate): Promise<ExerciseResult> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/exercise`, {
         method: "POST",
         headers: {
@@ -199,7 +199,7 @@ export async function logExercise(userId: number, log: ExerciseLogCreate): Promi
 }
 
 // Daily Quests
-export async function getDailyQuests(userId: number): Promise<UserQuest[]> {
+export async function getDailyQuests(userId: string): Promise<UserQuest[]> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/quests`);
     if (!response.ok) {
         const error = await response.json();
@@ -208,7 +208,7 @@ export async function getDailyQuests(userId: number): Promise<UserQuest[]> {
     return response.json();
 }
 
-export async function completeDailyQuest(userId: number, userQuestId: number): Promise<ExerciseResult> {
+export async function completeDailyQuest(userId: string, userQuestId: number): Promise<ExerciseResult> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/quests/${userQuestId}/complete`, {
         method: "POST",
     });
@@ -220,7 +220,7 @@ export async function completeDailyQuest(userId: number, userQuestId: number): P
 }
 
 // Daily Check
-export async function performDailyCheck(userId: number): Promise<DailyCheckResult> {
+export async function performDailyCheck(userId: string): Promise<DailyCheckResult> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/daily-check`, {
         method: "POST",
     });
@@ -241,7 +241,7 @@ export async function getAllAttractions(): Promise<Attraction[]> {
     return response.json();
 }
 
-export async function startTravelQuest(userId: number): Promise<Attraction> {
+export async function startTravelQuest(userId: string): Promise<Attraction> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/travel/start`, {
         method: "POST",
     });
@@ -252,7 +252,7 @@ export async function startTravelQuest(userId: number): Promise<Attraction> {
     return response.json();
 }
 
-export async function completeBreakthrough(userId: number): Promise<BreakthroughResult> {
+export async function completeBreakthrough(userId: string): Promise<BreakthroughResult> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/travel/breakthrough`, {
         method: "POST",
     });
@@ -264,7 +264,7 @@ export async function completeBreakthrough(userId: number): Promise<Breakthrough
 }
 
 // Travel Checkins (Location-based quests)
-export async function getUserTravelCheckins(userId: number): Promise<TravelCheckin[]> {
+export async function getUserTravelCheckins(userId: string): Promise<TravelCheckin[]> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/travel/checkins`);
     if (!response.ok) {
         const error = await response.json();
@@ -273,7 +273,7 @@ export async function getUserTravelCheckins(userId: number): Promise<TravelCheck
     return response.json();
 }
 
-export async function createTravelCheckin(userId: number, checkin: TravelCheckinCreate): Promise<{ pet: Pet; checkin: TravelCheckin }> {
+export async function createTravelCheckin(userId: string, checkin: TravelCheckinCreate): Promise<{ pet: Pet; checkin: TravelCheckin }> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/travel/checkins`, {
         method: "POST",
         headers: {

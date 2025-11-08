@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import { User, Pet, getUserPet } from "@/lib/api";
 
 interface UserContextType {
-  userId: number | null;
-  setUserId: (id: number | null) => void;
+  userId: string | null;
+  setUserId: (id: string | null) => void;
   pet: Pet | null;
   setPet: (pet: Pet | null) => void;
   refreshPet: () => Promise<void>;
@@ -13,10 +13,10 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserId] = useState<number | null>(() => {
+  const [userId, setUserId] = useState<string | null>(() => {
     // Load from localStorage
     const saved = localStorage.getItem("userId");
-    return saved ? parseInt(saved) : null;
+    return saved || null;
   });
   const [pet, setPet] = useState<Pet | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +24,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Save userId to localStorage when it changes
   useEffect(() => {
     if (userId !== null) {
-      localStorage.setItem("userId", userId.toString());
+      localStorage.setItem("userId", userId);
     } else {
       localStorage.removeItem("userId");
     }

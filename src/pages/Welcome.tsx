@@ -67,11 +67,12 @@ const Welcome = () => {
             const townpassId = townpassUser?.id;
 
             if (!townpassId) {
-                // 如果沒有 TownPass ID，直接使用 userId = 1
-                setUserId(1);
+                // 如果沒有 TownPass ID，使用預設測試帳號
+                const defaultUserId = "test-user-001";
+                setUserId(defaultUserId);
                 toast({
                     title: "歡迎！",
-                    description: `${petName} 歡迎回來！（使用預設帳號）`,
+                    description: `${petName} 歡迎回來！（使用測試帳號）`,
                 });
                 navigate("/");
             } else {
