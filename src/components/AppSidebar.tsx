@@ -146,7 +146,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
+   
         <SidebarGroup>
           <Collapsible open={missionsOpen} onOpenChange={setMissionsOpen}>
             <SidebarGroupLabel asChild>
