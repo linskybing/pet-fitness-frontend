@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef} from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -118,6 +118,44 @@ const Index = () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
+  }, []);
+
+  const alreadyNotifiedRef = useRef(false);
+
+  useEffect(() => {
+    const checkEarlyBirdTime = () => {
+      const now = new Date();
+      const hour = now.getHours();
+
+      // Demo: 1-5
+      const isEarlyBirdTime = hour >= 1 && hour < 5;
+
+      if (isEarlyBirdTime && window.flutterObject && !alreadyNotifiedRef.current) {
+        try {
+          const message = JSON.stringify({
+            name: "notify",
+            data: {
+              title: "🐔 早雞時段！",
+              content: "現在運動可獲得 +15% 加成！"
+            }
+          });
+          window.flutterObject.postMessage(message);
+          console.log("[早雞通知] 已發送早雞時段通知");
+          alreadyNotifiedRef.current = true; // <-- 只會被 set 一次
+        } catch (error) {
+          console.error("[早雞通知] 發送失敗:", error);
+        }
+      }
+
+      // 如果時段結束 -> 重置
+      if (!isEarlyBirdTime) {
+        alreadyNotifiedRef.current = false;
+      }
+    };
+
+    checkEarlyBirdTime();
+    const interval = setInterval(checkEarlyBirdTime, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   // 打字機效果（入場期間顯示）
