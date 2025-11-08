@@ -209,13 +209,18 @@ export function useTownPassAuth(opts?: { debug?: boolean; timeout?: number; auth
           }
           log("flutterObject parsed data:", data);
 
-          // Response format: { name: 'userid', data: 'user_id_value' }
-          if (data?.name === 'userid' && data?.data) {
-            // Convert to TownPassUser format
+          // Response format: { name: 'userinfo', data: {...} }
+          if (data?.name === 'userinfo' && data?.data) {
+            log("Received userinfo from flutterObject:", data.data);
+            const ok = handleIncomingRaw(data.data);
+            if (ok) cleanup();
+          }
+          // Also support userid format: { name: 'userid', data: 'user_id_value' }
+          else if (data?.name === 'userid' && data?.data) {
             const userData = {
               id: data.data,
             };
-            log("Converted to TownPassUser:", userData);
+            log("Converted userid to TownPassUser:", userData);
             const ok = handleIncomingRaw(userData);
             if (ok) cleanup();
           }
@@ -267,8 +272,8 @@ export function useTownPassAuth(opts?: { debug?: boolean; timeout?: number; auth
     // Now send request through flutterObject (TownPass uses this!)
     try {
       if (win?.flutterObject && typeof win.flutterObject.postMessage === "function") {
-        // Request userid from TownPass using correct message format
-        const message = JSON.stringify({ name: 'userid', data: null });
+        // Request userinfo from TownPass using correct message format
+        const message = JSON.stringify({ name: 'userinfo', data: null });
         log("Sending to flutterObject.postMessage:", message);
         win.flutterObject.postMessage(message);
       } else {
