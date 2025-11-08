@@ -21,23 +21,31 @@ const Welcome = () => {
     useEffect(() => {
         console.log("Welcome page mounted");
         setPageLoaded(true);
+
+        // Global error handler
+        const errorHandler = (event: ErrorEvent) => {
+            const stack = event.error?.stack || 'No stack';
+            setRenderError(`Error: ${event.message}\n\nStack:\n${stack}`);
+            console.error("Global error:", event.error);
+            event.preventDefault(); // Prevent default error handling
+        };
+
+        const rejectionHandler = (event: PromiseRejectionEvent) => {
+            setRenderError(`Promise Rejection: ${event.reason}`);
+            console.error("Unhandled promise rejection:", event.reason);
+        };
+
+        window.addEventListener('error', errorHandler);
+        window.addEventListener('unhandledrejection', rejectionHandler);
+
+        return () => {
+            window.removeEventListener('error', errorHandler);
+            window.removeEventListener('unhandledrejection', rejectionHandler);
+        };
     }, []);
 
-    // TownPass authentication - with error handling
-    let townpassUser = null;
-    let isTownPassLoading = false;
-    let requestTownPassUser = () => { };
-
-    try {
-        const auth = useTownPassAuth({ debug: true });
-        townpassUser = auth.user;
-        isTownPassLoading = auth.isLoading;
-        requestTownPassUser = auth.requestTownPassUser;
-    } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        setRenderError(`TownPass Hook Error: ${errorMsg}`);
-        console.error("useTownPassAuth error:", error);
-    }
+    // Always call hook (React rules)
+    const { user: townpassUser, isLoading: isTownPassLoading, requestTownPassUser } = useTownPassAuth({ debug: true });
 
     // Request TownPass user on component mount
     useEffect(() => {
