@@ -1,6 +1,6 @@
 // API Base URL
 // Use proxy in development and production (via Vercel rewrites) to avoid CORS issues
-const API_BASE_URL = import.meta.env.DEV ? "/api" : "https://back-end-tasw.onrender.com";
+const API_BASE_URL = import.meta.env.DEV ? "/api" : "https://back-end-production-68f7.up.railway.app";
 
 // ==================
 // Types (matching backend schemas)
