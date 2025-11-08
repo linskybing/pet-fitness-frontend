@@ -89,6 +89,29 @@ const Welcome = () => {
                 </div>
 
                 <div className="space-y-4">
+                    {/* Debug Info */}
+                    <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'var(--tp-grayscale-100)', borderColor: 'var(--tp-grayscale-300)', borderWidth: '1px' }}>
+                        <p className="tp-body-small" style={{ color: 'var(--tp-grayscale-600)' }}>
+                            Debug: {townpassUser ? `User ID: ${townpassUser.id}` : 'No user'}
+                        </p>
+                        <Button
+                            onClick={() => {
+                                console.log('Window objects:', {
+                                    townpass_message_channel: !!(window as any).townpass_message_channel,
+                                    TownPass: !!(window as any).TownPass,
+                                    webkit: !!(window as any).webkit,
+                                    ReactNativeWebView: !!(window as any).ReactNativeWebView,
+                                });
+                                requestTownPassUser();
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                        >
+                            重新檢測 TownPass
+                        </Button>
+                    </div>
+
                     {/* TownPass Status */}
                     {isTownPassLoading && (
                         <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'var(--tp-primary-50)' }}>
