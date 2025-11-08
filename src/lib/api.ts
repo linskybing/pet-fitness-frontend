@@ -15,6 +15,7 @@ export interface User {
 
 export interface UserCreate {
     pet_name: string;
+    user_id?: string;  // TownPass user ID (optional for now, will be required later)
 }
 
 export interface Pet {
@@ -59,9 +60,8 @@ export interface ExerciseLogCreate {
 
 export interface ExerciseResult {
     pet: Pet;
-    strength_gained: number;
     breakthrough_required: boolean;
-    message: string;
+    message?: string;
 }
 
 export interface Quest {
@@ -113,13 +113,18 @@ export interface BreakthroughResult {
 // ==================
 
 // User & Auth
-export async function createUser(pet_name: string): Promise<User> {
+export async function createUser(pet_name: string, townpass_id?: string): Promise<User> {
+    const body: UserCreate = { pet_name };
+    if (townpass_id) {
+        body.user_id = townpass_id;
+    }
+
     const response = await fetch(`${API_BASE_URL}/users/`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({ pet_name }),
+        body: JSON.stringify(body),
     });
     if (!response.ok) {
         const error = await response.json();

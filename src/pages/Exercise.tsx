@@ -11,7 +11,7 @@ type Activity = "idle" | "walking" | "jumping" | "unknown";
 
 const Exercise: React.FC = () => {
   const navigate = useNavigate();
-  const { userId, refreshPet } = useUser();
+  const { userId, pet, refreshPet } = useUser();
 
   const [isExercising, setIsExercising] = useState(false);
   const isExercisingRef = useRef(false);
@@ -59,6 +59,11 @@ const Exercise: React.FC = () => {
 
   // feature timer ref so we can clear properly
   const featureTimerRef = useRef<number | null>(null);
+
+  // Pause detection: track idle time
+  const idleStartTimeRef = useRef<number | null>(null);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const isPausedRef = useRef<boolean>(false);
 
   // Optional debug flag (kept but default off)
   const [DEBUG] = useState<boolean>(false);
@@ -156,6 +161,9 @@ const Exercise: React.FC = () => {
     samplesRef.current = [];
     gravityRef.current = { x: 0, y: 0, z: 0 };
     startTimeRef.current = Date.now();
+    idleStartTimeRef.current = null;
+    setIsPaused(false);
+    isPausedRef.current = false;
 
     toast.success("運動開始！保持節奏~");
 
@@ -192,6 +200,9 @@ const Exercise: React.FC = () => {
     setIsExercising(false);
     isExercisingRef.current = false;
 
+    // 記錄運動前的力量值
+    const strengthBefore = pet?.strength || 0;
+
     // 清理計時器
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
@@ -209,6 +220,11 @@ const Exercise: React.FC = () => {
       window.removeEventListener("devicemotion", motionHandlerRef.current);
       motionHandlerRef.current = null;
     }
+
+    // 重置暫停狀態
+    idleStartTimeRef.current = null;
+    setIsPaused(false);
+    isPausedRef.current = false;
 
     // 計算獎勵（基本）
     const stamina = Math.floor(duration / 10);
@@ -240,8 +256,13 @@ const Exercise: React.FC = () => {
         volume: steps,
       })
         .then((result) => {
+          console.log("Exercise result:", result);
+          // 計算力量增長 = 運動後力量 - 運動前力量
+          const strengthAfter = result.pet?.strength || 0;
+          const strengthGained = strengthAfter - strengthBefore;
+
           toast.success(
-            `運動完成！偵測到活動: ${activity}。獲得：力量+${result.strength_gained}${finalMood > 0 ? ` 心情+${finalMood}` : ""}`
+            `運動完成！偵測到活動: ${activity}。獲得：力量+${strengthGained}${finalMood > 0 ? ` 心情+${finalMood}` : ""}`
           );
           if (result.breakthrough_required) {
             toast.info("恭喜達到突破等級！請前往旅遊完成突破任務");
@@ -290,6 +311,22 @@ const Exercise: React.FC = () => {
 
     if (buf.length < 4) {
       setActivity("idle");
+      // Start tracking idle time
+      if (!idleStartTimeRef.current) {
+        idleStartTimeRef.current = Date.now();
+      } else {
+        const idleDuration = (Date.now() - idleStartTimeRef.current) / 1000;
+        // Pause timer if idle for more than 10 seconds
+        if (idleDuration >= 10 && !isPausedRef.current) {
+          setIsPaused(true);
+          isPausedRef.current = true;
+          if (durationIntervalRef.current) {
+            clearInterval(durationIntervalRef.current);
+            durationIntervalRef.current = null;
+          }
+          toast.info("偵測到連續10秒無活動，計時器已暫停");
+        }
+      }
       return;
     }
 
@@ -334,14 +371,48 @@ const Exercise: React.FC = () => {
       stdMag < Math.max(6, WALK_CAL.std * 3) &&
       peaksMag >= 1;
 
+    let detectedActivity: Activity = "unknown";
+
     if (isLikelyJump) {
-      setActivity("jumping");
+      detectedActivity = "jumping";
     } else if (isLikelyWalk) {
-      setActivity("walking");
+      detectedActivity = "walking";
     } else if (maxMag < 0.9 && stdMag < 0.6) {
-      setActivity("idle");
+      detectedActivity = "idle";
+    }
+
+    setActivity(detectedActivity);
+
+    // Handle pause/resume based on idle detection
+    if (detectedActivity === "idle") {
+      if (!idleStartTimeRef.current) {
+        idleStartTimeRef.current = Date.now();
+      } else {
+        const idleDuration = (Date.now() - idleStartTimeRef.current) / 1000;
+        // Pause timer if idle for more than 10 seconds
+        if (idleDuration >= 10 && !isPausedRef.current) {
+          setIsPaused(true);
+          isPausedRef.current = true;
+          if (durationIntervalRef.current) {
+            clearInterval(durationIntervalRef.current);
+            durationIntervalRef.current = null;
+          }
+          toast.info("偵測到連續10秒無活動，計時器已暫停");
+        }
+      }
     } else {
-      setActivity("unknown");
+      // Active movement detected - reset idle timer and resume if paused
+      idleStartTimeRef.current = null;
+      if (isPausedRef.current) {
+        setIsPaused(false);
+        isPausedRef.current = false;
+        if (!durationIntervalRef.current) {
+          durationIntervalRef.current = window.setInterval(() => {
+            setDuration((prev) => prev + 1);
+          }, 1000);
+        }
+        toast.success("偵測到活動恢復，計時器繼續");
+      }
     }
   };
 
@@ -455,7 +526,7 @@ const Exercise: React.FC = () => {
             </ul>
           </div>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <div className="inline-block px-3 py-1 rounded bg-muted text-sm">
               偵測到活動：{" "}
               <span className="font-semibold">
@@ -468,6 +539,11 @@ const Exercise: React.FC = () => {
                       : "未知"}
               </span>
             </div>
+            {isPaused && (
+              <div className="inline-block px-3 py-1 rounded bg-yellow-100 text-yellow-800 text-sm font-medium">
+                ⏸️ 計時器已暫停（偵測到10秒無活動）
+              </div>
+            )}
           </div>
 
           <Button

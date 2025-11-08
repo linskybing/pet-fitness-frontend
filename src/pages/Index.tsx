@@ -35,7 +35,16 @@ const Index = () => {
   // Perform daily check when component mounts
   useEffect(() => {
     const checkDaily = async () => {
-      if (userId && !hasCheckedDaily) {
+      if (userId && !hasCheckedDaily && pet) {
+        // Check if daily check was already done today
+        const today = new Date().toISOString().split('T')[0];
+        const lastCheckDate = pet.last_daily_check ? new Date(pet.last_daily_check).toISOString().split('T')[0] : null;
+
+        if (lastCheckDate === today) {
+          setHasCheckedDaily(true);
+          return;
+        }
+
         try {
           const result = await performDailyCheck(userId);
           // Only show toast if exercise was insufficient
@@ -54,7 +63,7 @@ const Index = () => {
       }
     };
     checkDaily();
-  }, [userId, hasCheckedDaily, refreshPet, toast]);
+  }, [userId, hasCheckedDaily, pet, refreshPet, toast]);
 
   // 入場動畫
   useEffect(() => {
