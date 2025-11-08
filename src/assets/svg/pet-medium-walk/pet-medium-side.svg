@@ -1,0 +1,37 @@
+<svg width="65" height="65" viewBox="0 0 65 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Medium chick - side view (facing right) -->
+  <!-- Body -->
+  <rect x="16" y="36" width="32" height="12" fill="#FFD700"/>
+  <rect x="12" y="32" width="40" height="4" fill="#FFD700"/>
+  <rect x="10" y="28" width="44" height="4" fill="#FFED4E"/>
+  <rect x="12" y="24" width="40" height="4" fill="#FFED4E"/>
+  
+  <!-- Head (profile) -->
+  <rect x="20" y="20" width="24" height="4" fill="#FFED4E"/>
+  <rect x="22" y="16" width="20" height="4" fill="#FFF176"/>
+  <rect x="24" y="12" width="16" height="4" fill="#FFF176"/>
+  
+  <!-- Comb (side view) -->
+  <rect x="30" y="6" width="2" height="6" fill="#F44336"/>
+  <rect x="32" y="4" width="2" height="8" fill="#F44336"/>
+  <rect x="34" y="6" width="2" height="6" fill="#F44336"/>
+  
+  <!-- Single eye (side view) -->
+  <rect x="36" y="18" width="2" height="2" fill="#333333"/>
+  
+  <!-- Side beak (pointing right) -->
+  <rect x="44" y="21" width="6" height="3" fill="#333333"/>
+  <rect x="45" y="22" width="4" height="1" fill="#FF9800"/>
+  
+  <!-- Wings (side view - showing near wing) -->
+  <rect x="28" y="26" width="12" height="8" fill="#FFC107"/>
+  <rect x="30" y="24" width="8" height="3" fill="#FFB300"/>
+  
+  <!-- Feet (side view) -->
+  <rect x="24" y="48" width="6" height="6" fill="#FF9800"/>
+  <rect x="34" y="48" width="6" height="6" fill="#FF9800"/>
+  
+  <!-- Tail feathers -->
+  <rect x="6" y="30" width="6" height="4" fill="#FFC107"/>
+  <rect x="4" y="32" width="4" height="2" fill="#FFD54F"/>
+</svg>
