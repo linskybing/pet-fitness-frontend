@@ -60,7 +60,7 @@ export interface ExerciseLog {
 export interface ExerciseLogCreate {
     exercise_type: string;
     duration_seconds: number;
-    volume: number;
+    steps: number;
 }
 
 export interface ExerciseResult {

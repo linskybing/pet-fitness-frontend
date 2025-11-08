@@ -332,7 +332,7 @@ const Exercise: React.FC = () => {
       logExercise(userId, {
         exercise_type: activity || "unknown",
         duration_seconds: duration,
-        volume: steps,
+        steps: steps,
       })
         .then(async (result) => {
           console.log("Exercise result:", result);
