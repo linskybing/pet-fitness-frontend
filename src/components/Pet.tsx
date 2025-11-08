@@ -36,12 +36,16 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
   // bubble measurement so we can place its bottom at the top of the pet
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState<number>(0);
+  const [bubbleWidth, setBubbleWidth] = useState<number>(200);
 
   // measure bubble height so we can position it exactly above the pet
   useEffect(() => {
     const measure = () => {
       const el = bubbleRef.current;
-      if (el) setBubbleHeight(el.clientHeight);
+      if (el) {
+        setBubbleHeight(el.clientHeight);
+        setBubbleWidth(el.clientWidth);
+      }
     };
 
     if ((manualMessage ?? autoMessage ?? message) && showMessage) {
@@ -51,6 +55,8 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
       setBubbleHeight(0);
     }
   }, [manualMessage, autoMessage, message, showMessage, position.x, position.y, containerSize.width]);
+
+  
 
   
 
@@ -64,8 +70,35 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
 
   const petSize = petSizes[stage];
 
+  // if the bubble would overlap the pet (not enough space above), shift the pet down
+  useEffect(() => {
+    if (!showMessage) return;
+    if (!bubbleHeight) return;
+
+    const gap = 6; // px between bubble bottom and pet top
+    const topMargin = 8; // min top padding
+
+    const bubbleTop = position.y - bubbleHeight - gap;
+    if (bubbleTop < topMargin) {
+      const shift = topMargin - bubbleTop;
+      setPosition((prev) => {
+        const maxY = Math.max(0, containerSize.height - petSize);
+        const newY = Math.min(prev.y + shift, maxY);
+        return { ...prev, y: newY };
+      });
+    }
+  }, [bubbleHeight, showMessage, position.y, containerSize.height, petSize]);
+
   // compute bubble top so its bottom aligns with the pet's top
   const computedBubbleTop = bubbleHeight > 0 ? Math.max(8, position.y - bubbleHeight - 6) : Math.max(8, position.y - petSize * 0.8);
+
+  // compute bubble left and clamp to container so it won't overflow horizontally
+  const centerX = position.x + petSize / 2;
+  const half = bubbleWidth > 0 ? bubbleWidth / 2 : 100;
+  const padding = 8; // keep some padding from edges
+  const minCenter = half + padding;
+  const maxCenter = Math.max(minCenter, containerSize.width - half - padding);
+  const computedBubbleLeft = Math.min(Math.max(centerX, minCenter), maxCenter);
 
   // measure container and update on resize
   useEffect(() => {
@@ -288,7 +321,7 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
         <div
           className="absolute pointer-events-none"
           style={{
-            left: position.x + petSize / 2,
+            left: computedBubbleLeft,
             top: computedBubbleTop,
             transform: "translateX(-50%)",
             maxWidth: 200,
@@ -298,36 +331,24 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
         >
               <div style={{ position: "relative" }} ref={bubbleRef}>
                 <div
-              className="px-3 py-2 rounded-lg"
-              style={{
-                backgroundColor: "#EDF8FA",
-                color: "var(--tp-grayscale-800)",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                width: 200,
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textAlign: 'center',
-                wordBreak: 'break-word'
-              }}
-            >
-              {manualMessage ?? autoMessage ?? message}
-            </div>
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
-                top: "100%",
-                width: 0,
-                height: 0,
-                borderLeft: "8px solid transparent",
-                borderRight: "8px solid transparent",
-                borderTop: "8px solid #EDF8FA",
-              }}
-            />
-          </div>
+                  className="px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: "#EDF8FA",
+                    color: "var(--tp-grayscale-800)",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                    width: 200,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    borderRadius: 12,
+                  }}
+                >
+                  {manualMessage ?? autoMessage ?? message}
+                </div>
+              </div>
         </div>
       )}
     </div>
