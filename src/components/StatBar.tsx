@@ -5,9 +5,10 @@ interface StatBarProps {
   value: number;
   max: number;
   icon: string;
+  iconType?: 'emoji' | 'svg';
 }
 
-const StatBar = ({ label, value, max, icon }: StatBarProps) => {
+const StatBar = ({ label, value, max, icon, iconType = 'emoji' }: StatBarProps) => {
   const percentage = (value / max) * 100;
   
   const getStatColor = () => {
@@ -20,7 +21,11 @@ const StatBar = ({ label, value, max, icon }: StatBarProps) => {
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center gap-1 text-foreground">
-          <span>{icon}</span>
+          {iconType === 'svg' ? (
+            <img src={icon} alt="" className="w-4 h-4" />
+          ) : (
+            <span>{icon}</span>
+          )}
           <span className="font-medium">{label}</span>
         </span>
         <span className="text-muted-foreground">

@@ -1,0 +1,6 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 啞鈴圖示 -->
+  <path d="M7 8V16M17 8V16" stroke="#475259" stroke-width="2" stroke-linecap="round"/>
+  <path d="M6 6H8V10H6V6ZM6 14H8V18H6V14ZM16 6H18V10H16V6ZM16 14H18V18H16V14Z" fill="#475259"/>
+  <path d="M8 11H16V13H8V11Z" fill="#475259"/>
+</svg>

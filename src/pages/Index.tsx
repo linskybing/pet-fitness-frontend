@@ -4,7 +4,11 @@ import { Card } from "@/components/ui/card";
 import Pet from "@/components/Pet";
 import StatBar from "@/components/StatBar";
 import ActionButton from "@/components/ActionButton";
-import { Dumbbell, Map, Edit2 } from "lucide-react";
+import { Dumbbell, Map } from "lucide-react";
+import EditIconSvg from "@/assets/svg/edit.svg";
+import StrengthIconSvg from "@/assets/svg/strength.svg";
+import HeartIconSvg from "@/assets/svg/heart.svg";
+import SmileIconSvg from "@/assets/svg/smile.svg";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import {
@@ -26,7 +30,7 @@ const Index = () => {
     strength: 45, // 力量值，每10秒運動+1，每級120點
     stamina: 900, // 體力值，每天900點，每10秒運動-1
     mood: 80, // 心情值
-    level: 3,
+    level: 1,
     currentLevelStrength: 45, // 當前等級的力量值進度
   });
 
@@ -137,17 +141,15 @@ const Index = () => {
           >
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center gap-3 flex-1">
-              <Popover open={namePopoverOpen} onOpenChange={setNamePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <button 
-                    className="tp-h2-semibold flex items-center gap-2 hover:opacity-70 transition-opacity"
-                    style={{ color: 'var(--tp-primary-700)' }}
-                  >
-                    {petName}
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
+              <div className="tp-h2-semibold flex items-center gap-2" style={{ color: 'var(--tp-primary-700)' }}>
+                <span>{petName}</span>
+                <Popover open={namePopoverOpen} onOpenChange={setNamePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="hover:opacity-70 transition-opacity p-1 -m-1 rounded">
+                      <img src={EditIconSvg} alt="編輯" className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
                   <div className="space-y-4">
                     <div className="tp-h3-semibold" style={{ color: 'var(--tp-grayscale-800)' }}>
                       修改寵物名稱
@@ -181,7 +183,8 @@ const Index = () => {
                     </div>
                   </div>
                 </PopoverContent>
-              </Popover>
+                </Popover>
+              </div>
               
               <span className="tp-body-regular" style={{ color: 'var(--tp-grayscale-600)' }}>
                 {getStageName(petStage)}
@@ -232,19 +235,22 @@ const Index = () => {
                   label="力量值" 
                   value={stats.currentLevelStrength} 
                   max={120} 
-                  icon="💪" 
+                  icon={StrengthIconSvg}
+                  iconType="svg"
                 />
                 <StatBar 
                   label="體力值" 
                   value={stats.stamina} 
                   max={900} 
-                  icon="❤️" 
+                  icon={HeartIconSvg}
+                  iconType="svg"
                 />
                 <StatBar 
                   label="心情" 
                   value={stats.mood} 
                   max={100} 
-                  icon="😊" 
+                  icon={SmileIconSvg}
+                  iconType="svg"
                 />
               </Card>
 
