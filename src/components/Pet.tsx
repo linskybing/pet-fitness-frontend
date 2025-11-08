@@ -206,6 +206,7 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
 
   const genStaminaMessage = (value?: number, max = 900) => {
     if (value == null) return "體力資訊不可用";
+    if (value <= 0) return `咕咕！今天運動量已經足夠了，明天繼續加油！🌟`;
     if (value < max / 4) return `體力很低，先休息並補充能量吧！`;
     if (value < max / 2) return `體力有點不足，建議做溫和運動恢復。`;
     return `體力狀態良好，可以安心運動。`;
@@ -214,8 +215,8 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
   const genMoodMessage = (moodVal?: number) => {
     if (moodVal == null) return "心情資訊不可用";
     if (moodVal <= 40) return `心情較差，可以做些放鬆或聽音樂喔。`;
-    if (moodVal <= 60) return `心情還好，給自己一點鼓勵！`;
-    return `心情很好，太棒了！`;
+    if (moodVal <= 60) return `心情還好，咕咕～感覺還不錯呢！`;
+    return `咕咕！心情超好，繼續保持運動習慣喔！💪`;
   };
 
   const handlePetClick = () => {
