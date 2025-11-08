@@ -1,483 +1,337 @@
-import { useState, useCallback, useRef } from 'react';
-
 /**
- * Extended Window interface for TownPass bridge methods
+ * Improved useTownPassAuth
+ *
+ * - Registers listeners BEFORE sending requests to avoid race conditions.
+ * - Accepts many incoming payload shapes and tries to robustly parse them.
+ * - Supports townpass_message_channel (onmessage/addEventListener), window.postMessage,
+ *   window.__onTownPassUser callback and CustomEvent('townpass:user').
+ * - Debug-friendly and includes test snippets below.
  */
-interface TownPassWindow extends Window {
-  TownPass?: {
-    getUser?: () => TownPassUser;
-  };
-  webkit?: {
-    messageHandlers?: {
-      TownPass?: {
-        postMessage: (data: { action: string }) => void;
-      };
-    };
-  };
-  ReactNativeWebView?: {
-    postMessage: (data: string) => void;
-  };
-  __onTownPassUser?: (user: TownPassUser) => void;
-}
 
-/**
- * TownPass User data structure
- * This should match the data format provided by the TownPass native app
- */
-export interface TownPassUser {
-  id: string;
+import { useCallback, useRef, useState } from "react";
+
+export type TownPassUser = {
+  id?: string;
   name?: string;
   email?: string;
   phone?: string;
   token?: string;
   signature?: string;
   timestamp?: number;
-  [key: string]: unknown; // Allow additional fields from TownPass
-}
+  [k: string]: any;
+};
 
-/**
- * Options for the useTownPassAuth hook
- */
-export interface UseTownPassAuthOptions {
-  /**
-   * Enable debug logging to console
-   * Can also be enabled via DEBUG environment variable
-   */
-  debug?: boolean;
+export function useTownPassAuth(opts?: { debug?: boolean; timeout?: number; authEndpoint?: string }) {
+  const debug = opts?.debug ?? false;
+  const timeoutMs = opts?.timeout ?? 3000;
+  const authEndpoint = opts?.authEndpoint ?? "/api/auth/townpass";
 
-  /**
-   * Timeout in milliseconds for waiting for TownPass response
-   * Default: 3000ms (3 seconds)
-   */
-  timeout?: number;
+  const [user, setUser] = useState<TownPassUser | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  /**
-   * Backend endpoint for TownPass authentication
-   * Default: '/api/auth/townpass'
-   */
-  authEndpoint?: string;
-}
+  const timerRef = useRef<number | null>(null);
+  const listenerRef = useRef<(ev: MessageEvent) => void | null>(null);
+  const channelListenerRef = useRef<((ev: MessageEvent) => void) | null>(null);
+  const cleanedRef = useRef(false);
 
-/**
- * State of the TownPass authentication process
- */
-export interface TownPassAuthState {
-  user: TownPassUser | null;
-  isLoading: boolean;
-  error: string | null;
-  isAuthenticated: boolean;
-}
+  const log = useCallback((...args: any[]) => {
+    if (debug) console.debug("[TownPassAuth]", ...args);
+  }, [debug]);
 
-/**
- * Hook for TownPass WebView authentication
- * 
- * This hook attempts to communicate with TownPass native app using multiple bridge strategies:
- * 1. window.TownPass.getUser() - Direct method call
- * 2. webkit.messageHandlers.TownPass.postMessage() - iOS WKWebView
- * 3. window.postMessage() - Standard web messaging
- * 4. window.ReactNativeWebView.postMessage() - React Native WebView
- * 5. window.__onTownPassUser - Callback registration for async response
- * 
- * Usage:
- * ```tsx
- * const { requestTownPassUser, loginWithTownPass, user, isLoading, error } = useTownPassAuth({ debug: true });
- * 
- * useEffect(() => {
- *   requestTownPassUser();
- * }, []);
- * 
- * useEffect(() => {
- *   if (user) {
- *     loginWithTownPass(user);
- *   }
- * }, [user]);
- * ```
- * 
- * To simulate TownPass messages in desktop browser for testing:
- * 
- * Method 1 - TownPass message channel (recommended for real TownPass app):
- * ```javascript
- * // In browser console, simulate TownPass message channel:
- * window.townpass_message_channel = {
- *   postMessage: function(msg) { console.log('Sent to TownPass:', msg); },
- *   addEventListener: function(event, handler) {
- *     setTimeout(() => {
- *       handler({
- *         data: JSON.stringify({
- *           name: 'userinfo',
- *           data: JSON.stringify({
- *             id: 'test-user-123',
- *             name: 'Test User',
- *             email: 'test@example.com'
- *           })
- *         })
- *       });
- *     }, 100);
- *   }
- * };
- * // Then call requestTownPassUser()
- * ```
- * 
- * Method 2 - Direct callback:
- * ```javascript
- * // In browser console after page loads:
- * if (window.__onTownPassUser) {
- *   window.__onTownPassUser({
- *     id: 'test-user-123',
- *     name: 'Test User',
- *     email: 'test@example.com',
- *     token: 'mock-jwt-token',
- *     signature: 'mock-signature',
- *     timestamp: Date.now()
- *   });
- * }
- * ```
- * 
- * Method 3 - Mock TownPass object:
- * ```javascript
- * window.TownPass = {
- *   getUser: () => ({
- *     id: 'test-user-123',
- *     name: 'Test User',
- *     token: 'mock-jwt-token'
- *   })
- * };
- * // Then trigger requestTownPassUser()
- * ```
- * 
- * Backend Integration:
- * The backend endpoint should:
- * 1. Receive POST request to /api/auth/townpass with body: { townpass_user: TownPassUser }
- * 2. Verify the signature/token with TownPass API
- * 3. Create or update user session
- * 4. Return authentication status and user data
- * 
- * Example backend verification (Node.js/Express):
- * ```javascript
- * app.post('/api/auth/townpass', async (req, res) => {
- *   const { townpass_user } = req.body;
- *   
- *   // Verify signature with TownPass public key or API
- *   const isValid = await verifyTownPassSignature(
- *     townpass_user.signature,
- *     townpass_user.token,
- *     townpass_user.timestamp
- *   );
- *   
- *   if (!isValid) {
- *     return res.status(401).json({ error: 'Invalid TownPass signature' });
- *   }
- *   
- *   // Create/update user session
- *   req.session.userId = townpass_user.id;
- *   req.session.townpass = townpass_user;
- *   
- *   res.json({ success: true, user: townpass_user });
- * });
- * ```
- */
-export function useTownPassAuth(options: UseTownPassAuthOptions = {}) {
-  const {
-    debug = false,
-    timeout = 3000,
-    authEndpoint = '/api/auth/townpass'
-  } = options;
+  const parseIncoming = (raw: any): TownPassUser | null => {
+    if (!raw) return null;
 
-  const [state, setState] = useState<TownPassAuthState>({
-    user: null,
-    isLoading: false,
-    error: null,
-    isAuthenticated: false
-  });
-
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const listenerRef = useRef<((event: MessageEvent) => void) | null>(null);
-
-  // Check if debug mode is enabled via environment or option
-  const isDebugEnabled = debug || (typeof process !== 'undefined' && process.env?.DEBUG === 'true');
-
-  const log = useCallback((...args: unknown[]) => {
-    if (isDebugEnabled) {
-      console.log('[TownPassAuth]', ...args);
+    // If it's a string, try parse
+    let payload = raw;
+    if (typeof payload === "string") {
+      const maybe = tryParse(payload);
+      if (maybe !== null) payload = maybe;
     }
-  }, [isDebugEnabled]);
 
-  const logError = useCallback((...args: unknown[]) => {
-    if (isDebugEnabled) {
-      console.error('[TownPassAuth]', ...args);
+    // Known shapes (try in order)
+    // { source: 'townpass', type: 'user', payload: {...} }
+    if (payload?.source === "townpass" && (payload?.type === "user" || payload?.type === "user_info")) {
+      return payload.payload ?? payload.user ?? null;
     }
-  }, [isDebugEnabled]);
 
-  /**
-   * Clear timeout and event listeners
-   */
-  const cleanup = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (listenerRef.current) {
-      const win = window as any;
-      if (win.townpass_message_channel?.removeEventListener) {
-        win.townpass_message_channel.removeEventListener('message', listenerRef.current);
+    // { type: 'townpass:user', user: {...} }
+    if (payload?.type === "townpass:user" && payload?.user) return payload.user;
+
+    // { type: 'TOWNPASS_USER', user: {...} }
+    if ((payload?.type === "TOWNPASS_USER" || payload?.type === "TOWNPASS_USER_INFO") && payload?.user) return payload.user;
+
+    // { townpass_user: {...} }
+    if (payload?.townpass_user) return payload.townpass_user;
+
+    // { user: {...} }
+    if (payload?.user && typeof payload.user === "object" && payload.user.id) return payload.user;
+
+    // TownPass specific: { name: 'userinfo', data: JSON.stringify({...}) } or { name:'userinfo', data: {...} }
+    if (payload?.name === "userinfo") {
+      const d = payload.data;
+      if (typeof d === "string") {
+        const p = tryParse(d);
+        return p ?? null;
       }
-      window.removeEventListener('message', listenerRef.current);
+      if (typeof d === "object") return d as TownPassUser;
+    }
+
+    // CustomEvent detail: { detail: { user: {...} } }
+    if (payload?.detail && (payload.detail.user || payload.detail.townpass_user)) {
+      return payload.detail.user ?? payload.detail.townpass_user;
+    }
+
+    // raw looks like user object (has id)
+    if (typeof payload === "object" && payload.id) {
+      return payload as TownPassUser;
+    }
+
+    return null;
+  };
+
+  function tryParse(s: string) {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+
+  const cleanup = useCallback(() => {
+    log("cleanup listeners");
+    cleanedRef.current = true;
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // remove message listener
+    if (listenerRef.current) {
+      window.removeEventListener("message", listenerRef.current);
       listenerRef.current = null;
     }
-  }, []);
 
-  /**
-   * Handle successful user retrieval
-   */
-  const handleUserReceived = useCallback((user: TownPassUser) => {
-    log('User received:', user);
-    cleanup();
-    setState(prev => ({
-      ...prev,
-      user,
-      isLoading: false,
-      error: null
-    }));
-  }, [cleanup, log]);
-
-  /**
-   * Handle timeout - no response from TownPass
-   */
-  const handleTimeout = useCallback(() => {
-    logError('Timeout: No response from TownPass within', timeout, 'ms');
-    cleanup();
-    setState(prev => ({
-      ...prev,
-      user: null,
-      isLoading: false,
-      error: 'TownPass authentication timeout'
-    }));
-  }, [cleanup, logError, timeout]);
-
-  /**
-   * Request TownPass user information using multiple bridge strategies
-   * Returns null if no response within timeout period
-   */
-  const requestTownPassUser = useCallback(async () => {
-    log('Requesting TownPass user...');
-
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null
-    }));
-
-    // Clear any existing listeners/timeouts
-    cleanup();
-
-    // Set timeout
-    timeoutRef.current = setTimeout(handleTimeout, timeout);
-
-    // Check if TownPass message channel exists
-    const win = window as any;
-    const hasTownPassChannel = win.townpass_message_channel;
-
-    if (hasTownPassChannel) {
-      log('TownPass message channel detected');
-
-      // Set up listener for TownPass response
-      const messageHandler = (event: MessageEvent) => {
-        try {
-          log('Received message:', event.data);
-
-          // TownPass sends messages in format: { name: 'userinfo', data: '...' }
-          let messageData = event.data;
-          if (typeof messageData === 'string') {
-            messageData = JSON.parse(messageData);
-          }
-
-          if (messageData.name === 'userinfo' && messageData.data) {
-            const userData = typeof messageData.data === 'string'
-              ? JSON.parse(messageData.data)
-              : messageData.data;
-
-            log('Parsed user data:', userData);
-            handleUserReceived(userData);
-          }
-        } catch (err) {
-          logError('Error parsing TownPass message:', err);
-        }
-      };
-
-      // Listen for messages from TownPass
-      if (win.townpass_message_channel.addEventListener) {
-        win.townpass_message_channel.addEventListener('message', messageHandler);
-        listenerRef.current = messageHandler;
-      } else if (win.townpass_message_channel.onmessage) {
-        win.townpass_message_channel.onmessage = messageHandler;
-      }
-
-      // Request user info from TownPass
-      try {
-        const requestMessage = JSON.stringify({ name: 'userinfo', data: null });
-        log('Sending request to TownPass:', requestMessage);
-        win.townpass_message_channel.postMessage(requestMessage);
-      } catch (err) {
-        logError('Failed to send message to TownPass:', err);
-      }
-    } else {
-      log('TownPass message channel not found, trying fallback methods');
-
-      // Strategy 1: Try direct TownPass.getUser() method
-      try {
-        if (win.TownPass && typeof win.TownPass.getUser === 'function') {
-          log('Attempting Strategy 1: window.TownPass.getUser()');
-          const user = win.TownPass.getUser();
-          if (user) {
-            handleUserReceived(user);
-            return;
-          }
-        }
-      } catch (err) {
-        logError('Strategy 1 failed:', err);
-      }
-
-      // Strategy 2: Try iOS WKWebView message handler
-      try {
-        if (win.webkit?.messageHandlers?.TownPass) {
-          log('Attempting Strategy 2: webkit.messageHandlers.TownPass');
-          win.webkit.messageHandlers.TownPass.postMessage({ action: 'getUser' });
-        }
-      } catch (err) {
-        logError('Strategy 2 failed:', err);
-      }
-
-      // Strategy 3: Try React Native WebView postMessage
-      try {
-        if (win.ReactNativeWebView?.postMessage) {
-          log('Attempting Strategy 3: ReactNativeWebView.postMessage');
-          win.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'TOWNPASS_GET_USER'
-          }));
-        }
-      } catch (err) {
-        logError('Strategy 3 failed:', err);
-      }
-    }
-
-    // Strategy 4: Try standard window.postMessage
+    // remove townpass_message_channel listener if set
     try {
-      log('Attempting Strategy 4: window.postMessage');
-      window.postMessage({ type: 'TOWNPASS_GET_USER' }, '*');
-    } catch (err) {
-      logError('Strategy 4 failed:', err);
+      const win = window as any;
+      if (channelListenerRef.current && win?.townpass_message_channel) {
+        if (typeof win.townpass_message_channel.removeEventListener === "function") {
+          win.townpass_message_channel.removeEventListener("message", channelListenerRef.current);
+        } else {
+          // fallback: unset onmessage handler if we set it earlier (we don't override host-defined ones)
+          if (win.townpass_message_channel.onmessage === channelListenerRef.current) {
+            win.townpass_message_channel.onmessage = null;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
     }
+    channelListenerRef.current = null;
 
-    // Strategy 5: Register callback for async response
+    // remove __onTownPassUser if we created it
     try {
-      const win = window as TownPassWindow;
-      log('Attempting Strategy 5: Registering __onTownPassUser callback');
-      win.__onTownPassUser = (user: TownPassUser) => {
-        handleUserReceived(user);
-      };
-    } catch (err) {
-      logError('Strategy 5 failed:', err);
+      const win = window as any;
+      if (win && win.__onTownPassUser && typeof win.__onTownPassUser === "function") {
+        try { delete win.__onTownPassUser; } catch (e) { win.__onTownPassUser = undefined; }
+      }
+    } catch (e) {
+      // ignore
     }
+  }, [log]);
 
-    // Listen for postMessage responses
-    const messageListener = (event: MessageEvent) => {
-      log('Received message event:', event.data);
+  const handleIncomingRaw = useCallback((raw: any) => {
+    const parsed = parseIncoming(raw);
+    if (parsed) {
+      log("parsed TownPass user:", parsed);
+      setUser(parsed);
+      setIsLoading(false);
+      setError(null);
+      return true;
+    }
+    return false;
+  }, [log]);
 
-      // Check if this is a TownPass user message
-      if (event.data?.type === 'TOWNPASS_USER' && event.data?.user) {
-        handleUserReceived(event.data.user);
-      } else if (event.data?.townpass_user) {
-        // Alternative format
-        handleUserReceived(event.data.townpass_user);
+  const requestTownPassUser = useCallback(async (timeout = timeoutMs) => {
+    log("requestTownPassUser start, timeout:", timeout);
+    cleanedRef.current = false;
+    setIsLoading(true);
+    setError(null);
+    setUser(null);
+
+    // cleanup first
+    cleanup();
+
+    // register generic window.message listener FIRST
+    const genericListener = (ev: MessageEvent) => {
+      log("window.message event:", ev.data);
+      const ok = handleIncomingRaw(ev.data);
+      if (ok) {
+        // successful => cleanup timer/listeners
+        cleanup();
       }
     };
+    listenerRef.current = genericListener;
+    window.addEventListener("message", genericListener);
 
-    listenerRef.current = messageListener;
-    window.addEventListener('message', messageListener);
+    // register CustomEvent 'townpass:user' listener
+    const customListener = (ev: Event) => {
+      log("CustomEvent townpass:user:", (ev as CustomEvent).detail);
+      const ok = handleIncomingRaw((ev as CustomEvent).detail);
+      if (ok) cleanup();
+    };
+    window.addEventListener("townpass:user", customListener as EventListener);
 
-    log('All strategies initiated, waiting for response...');
-  }, [cleanup, handleTimeout, handleUserReceived, log, logError, timeout]);
+    // register window.__onTownPassUser callback BEFORE sending request
+    const win = window as any;
+    win.__onTownPassUser = (payload: any) => {
+      log("__onTownPassUser called:", payload);
+      const ok = handleIncomingRaw(payload);
+      if (ok) cleanup();
+    };
 
-  /**
-   * Login with TownPass user by posting to backend
-   * 
-   * @param user - TownPass user object to authenticate
-   * @returns Promise that resolves with the backend response
-   */
-  const loginWithTownPass = useCallback(async (user: TownPassUser) => {
-    log('Logging in with TownPass user:', user.id);
+    // register townpass_message_channel listener if present
+    try {
+      if (win?.townpass_message_channel) {
+        log("found townpass_message_channel, attaching listener");
+        const channelHandler = (ev: any) => {
+          // some hosts send event object with data property
+          const data = ev?.data ?? ev;
+          log("townpass_message_channel event:", data);
+          let parsed = data;
+          if (typeof parsed === "string") parsed = tryParse(parsed) ?? parsed;
+          // also support nested message shape { name:'userinfo', data: '...' }
+          const ok = handleIncomingRaw(parsed);
+          if (ok) cleanup();
+        };
+        channelListenerRef.current = channelHandler;
+        if (typeof win.townpass_message_channel.addEventListener === "function") {
+          win.townpass_message_channel.addEventListener("message", channelHandler);
+        } else {
+          // fallback to onmessage
+          win.townpass_message_channel.onmessage = channelHandler;
+        }
+      }
+    } catch (e) {
+      log("error attaching townpass_message_channel listener", e);
+    }
 
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null
-    }));
+    // set timeout AFTER listeners are set
+    timerRef.current = window.setTimeout(() => {
+      log("requestTownPassUser timed out");
+      setIsLoading(false);
+      setError("TownPass authentication timeout");
+      cleanup();
+    }, timeout);
+
+    // Now send request through multiple channels (best-effort)
+    try {
+      // iOS WKWebView handler
+      if (win?.webkit?.messageHandlers?.TownPass) {
+        try {
+          log("posting to webkit.messageHandlers.TownPass.postMessage");
+          win.webkit.messageHandlers.TownPass.postMessage({ action: "getUser" });
+        } catch (e) {
+          // try string form
+          try {
+            win.webkit.messageHandlers.TownPass.postMessage("getUser");
+          } catch (e2) {
+            log("webkit.post fallback failed", e2);
+          }
+        }
+      }
+    } catch (e) {
+      log("webkit call error", e);
+    }
 
     try {
-      const response = await fetch(authEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include', // Important: include cookies for session
-        body: JSON.stringify({
-          townpass_user: user
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      // ReactNativeWebView
+      if (win?.ReactNativeWebView?.postMessage) {
+        log("posting to ReactNativeWebView.postMessage");
+        win.ReactNativeWebView.postMessage(JSON.stringify({ type: "getUser" }));
       }
-
-      const data = await response.json();
-      log('Login successful:', data);
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        isAuthenticated: true,
-        error: null
-      }));
-
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error during login';
-      logError('Login failed:', errorMessage);
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        isAuthenticated: false,
-        error: errorMessage
-      }));
-
-      throw err;
+    } catch (e) {
+      log("ReactNativeWebView post error", e);
     }
-  }, [authEndpoint, log, logError]);
 
-  /**
-   * Reset authentication state
-   */
+    try {
+      // Android style bridge
+      if (win?.TownPass && typeof win.TownPass.postMessage === "function") {
+        log("posting to TownPass.postMessage");
+        win.TownPass.postMessage(JSON.stringify({ type: "getUser" }));
+      }
+    } catch (e) {
+      log("TownPass.postMessage error", e);
+    }
+
+    try {
+      // generic window.postMessage
+      log("posting fallback window.postMessage");
+      window.postMessage(JSON.stringify({ source: "web", type: "getUser" }), "*");
+    } catch (e) {
+      log("window.postMessage error", e);
+    }
+
+    // also try calling sync getUser if available (some hosts expose it)
+    try {
+      if (win?.TownPass && typeof win.TownPass.getUser === "function") {
+        log("attempting sync TownPass.getUser()");
+        const res = win.TownPass.getUser();
+        if (res) {
+          log("sync TownPass.getUser returned:", res);
+          if (handleIncomingRaw(res)) cleanup();
+        }
+      }
+    } catch (e) {
+      log("sync getUser error", e);
+    }
+
+    log("requestTownPassUser: requests sent, waiting for host response...");
+  }, [cleanup, handleIncomingRaw, log, timeoutMs]);
+
+  const loginWithTownPass = useCallback(async (u: TownPassUser) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(authEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ townpass_user: u })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Backend auth failed ${res.status} ${txt}`);
+      }
+      const data = await res.json();
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      log("backend login success", data);
+      return data;
+    } catch (e: any) {
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      setError(e?.message ?? "Login failed");
+      log("loginWithTownPass error", e);
+      throw e;
+    }
+  }, [authEndpoint, log]);
+
   const reset = useCallback(() => {
-    log('Resetting authentication state');
     cleanup();
-    setState({
-      user: null,
-      isLoading: false,
-      error: null,
-      isAuthenticated: false
-    });
-  }, [cleanup, log]);
+    setUser(null);
+    setIsAuthenticated(false);
+    setIsLoading(false);
+    setError(null);
+  }, [cleanup]);
 
   return {
-    // State
-    user: state.user,
-    isLoading: state.isLoading,
-    error: state.error,
-    isAuthenticated: state.isAuthenticated,
-
-    // Actions
+    user,
+    isLoading,
+    error,
+    isAuthenticated,
     requestTownPassUser,
     loginWithTownPass,
     reset
