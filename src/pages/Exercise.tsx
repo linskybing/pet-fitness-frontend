@@ -330,6 +330,7 @@ const Exercise: React.FC = () => {
     // 提交到後端API
     if (userId && duration > 0) {
       logExercise(userId, {
+        exercise_type: activity || "unknown",
         duration_seconds: duration,
         steps: steps,
       })
