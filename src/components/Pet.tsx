@@ -1,5 +1,67 @@
 import { useEffect, useRef, useState } from "react";
 import bg from "@/assets/image/background.png";
+import PetEggSvg from "@/assets/svg/pet-egg.svg";
+import PetSmallSvg from "@/assets/svg/pet-small.svg";
+import PetMediumSvg from "@/assets/svg/pet-medium.svg";
+import PetLargeSvg from "@/assets/svg/pet-large.svg";
+import PetBuffSvg from "@/assets/svg/pet-buff.svg";
+
+// Walking frame imports
+import PetSmallWalk1 from "@/assets/svg/pet-small-walk/frame-1.svg";
+import PetSmallWalk2 from "@/assets/svg/pet-small-walk/frame-2.svg";
+import PetSmallWalk3 from "@/assets/svg/pet-small-walk/frame-3.svg";
+import PetSmallWalk4 from "@/assets/svg/pet-small-walk/frame-4.svg";
+import PetSmallWalk5 from "@/assets/svg/pet-small-walk/frame-5.svg";
+import PetSmallWalk6 from "@/assets/svg/pet-small-walk/frame-6.svg";
+import PetSmallWalk7 from "@/assets/svg/pet-small-walk/frame-7.svg";
+import PetSmallWalk8 from "@/assets/svg/pet-small-walk/frame-8.svg";
+
+// Flying frame imports
+import PetSmallFly1 from "@/assets/svg/pet-small-fly/pet-small-1.png.png";
+import PetSmallFly2 from "@/assets/svg/pet-small-fly/pet-small-2.png.png";
+import PetMediumFly1 from "@/assets/svg/pet-medium-fly/pet-medium-1.png.png";
+import PetMediumFly2 from "@/assets/svg/pet-medium-fly/pet-medium-2.png.png";
+import PetLargeFly1 from "@/assets/svg/pet-large-fly/pet-large-1.png.png";
+import PetLargeFly2 from "@/assets/svg/pet-large-fly/pet-large-2.png.png";
+
+// Frame-based animation system
+const getWalkFrame = (stage: string, frameIndex: number, direction: number) => {
+  if (stage === "small") {
+    const smallWalkFrames = [
+      PetSmallWalk1, PetSmallWalk2, PetSmallWalk3, PetSmallWalk4,
+      PetSmallWalk5, PetSmallWalk6, PetSmallWalk7, PetSmallWalk8
+    ];
+    return smallWalkFrames[frameIndex % 8];
+  }
+  
+  // For other stages, return base SVG for now
+  switch (stage) {
+    case "medium": return PetMediumSvg;
+    case "large": return PetLargeSvg;
+    case "buff": return PetBuffSvg;
+    default: return PetSmallSvg;
+  }
+};
+
+// Get fly animation frame (alternates between 2 frames)
+const getFlyFrame = (stage: string, frameIndex: number) => {
+  if (stage === "small") {
+    const smallFlyFrames = [PetSmallFly1, PetSmallFly2];
+    return smallFlyFrames[frameIndex % 2];
+  }
+  
+  if (stage === "medium") {
+    const mediumFlyFrames = [PetMediumFly1, PetMediumFly2];
+    return mediumFlyFrames[frameIndex % 2];
+  }
+  
+  if (stage === "large") {
+    const largeFlyFrames = [PetLargeFly1, PetLargeFly2];
+    return largeFlyFrames[frameIndex % 2];
+  }
+  
+  return null;
+};
 
 interface PetProps {
   stage: "egg" | "small" | "medium" | "large" | "buff";
@@ -19,9 +81,15 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
   const petRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState({ x: 150, y: 150 });
-  const [velocity, setVelocity] = useState({ x: 1, y: 1 });
   const [containerSize, setContainerSize] = useState({ width: 300, height: 300 });
   const [showMessage, setShowMessage] = useState<boolean>(false);
+
+  // Animation states
+  const [isJumping, setIsJumping] = useState(false);
+  const [isFlying, setIsFlying] = useState(false);
+  const [flyFrame, setFlyFrame] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 for right, -1 for left
+  const [walkCycle, setWalkCycle] = useState(0);
 
   // manual (click-triggered) message management
   const manualTimerRef = useRef<number | null>(null);
@@ -69,6 +137,7 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
   } as const;
 
   const petSize = petSizes[stage];
+  const groundLevel = containerSize.height - petSize - 20;
 
   // if the bubble would overlap the pet (not enough space above), shift the pet down
   useEffect(() => {
@@ -127,55 +196,205 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
     };
   }, [petSize]);
 
+  // Set initial position based on stage
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPosition((prev) => {
-        let newX = prev.x + velocity.x;
-        let newY = prev.y + velocity.y;
-        let newVelX = velocity.x;
-        let newVelY = velocity.y;
-
-        // Collision detection with measured boundaries
-        if (newX <= 0 || newX + petSize >= containerSize.width) {
-          newVelX = -newVelX;
-          newX = Math.max(0, Math.min(newX, containerSize.width - petSize));
-        }
-
-        if (newY <= 0 || newY + petSize >= containerSize.height) {
-          newVelY = -newVelY;
-          newY = Math.max(0, Math.min(newY, containerSize.height - petSize));
-        }
-
-        // occasional random change
-        if (Math.random() > 0.98) {
-          newVelX = (Math.random() - 0.5) * 2;
-          newVelY = (Math.random() - 0.5) * 2;
-        }
-
-        // update velocity for next tick
-        setVelocity({ x: newVelX, y: newVelY });
-
-        return { x: newX, y: newY };
+    if (stage === 'egg') {
+      setPosition({
+        x: containerSize.width / 2 - petSize / 2,
+        y: containerSize.height / 2 - petSize / 2 + 60
       });
-    }, 50);
+    } else {
+      setPosition({
+        x: 0,
+        y: groundLevel
+      });
+    }
+  }, [stage, petSize, groundLevel, containerSize]);
 
-    return () => clearInterval(interval);
-  }, [velocity, petSize, containerSize]);
+  // Device motion detection for flying/jumping
+  useEffect(() => {
+    const handleDeviceMotion = (event: DeviceMotionEvent) => {
+      if (!event.accelerationIncludingGravity) return;
+      
+      const { y } = event.accelerationIncludingGravity;
+      const upwardAcceleration = -(y || 0);
+      const flyThreshold = 15;
+      
+      if (upwardAcceleration > flyThreshold && !isJumping && !isFlying && stage !== 'egg') {
+        if (stage === 'buff') {
+          performJump();
+        } else {
+          performFly();
+        }
+      }
+    };
 
-  const getPetEmoji = () => {
+    const requestMotionPermission = async () => {
+      if (typeof DeviceMotionEvent !== 'undefined' && 'requestPermission' in DeviceMotionEvent) {
+        try {
+          const response = await (DeviceMotionEvent as any).requestPermission();
+          if (response === 'granted') {
+            window.addEventListener('devicemotion', handleDeviceMotion);
+          }
+        } catch (error) {
+          console.error('Error requesting motion permission:', error);
+          window.addEventListener('devicemotion', handleDeviceMotion);
+        }
+      } else {
+        window.addEventListener('devicemotion', handleDeviceMotion);
+      }
+    };
+
+    requestMotionPermission();
+
+    return () => {
+      window.removeEventListener('devicemotion', handleDeviceMotion);
+    };
+  }, [isJumping, isFlying, stage]);
+
+  // Horizontal walking movement - replace the old bouncing logic
+  useEffect(() => {
+    if (stage === 'egg' || isJumping || isFlying) {
+      return; // Eggs don't move, and don't walk while jumping/flying
+    }
+
+    const walkInterval = setInterval(() => {
+      setPosition((prev) => {
+        const currentX = prev.x;
+        let newX = currentX + (direction * 2); // Walking speed
+        
+        // Calculate collision box boundaries
+        const petLeftEdge = newX;
+        const petRightEdge = newX + petSize;
+        const containerLeftEdge = 0;
+        const containerRightEdge = containerSize.width;
+        
+        // Collision detection - only change direction when actually hitting boundaries
+        if (petLeftEdge <= containerLeftEdge) {
+          // Hit left wall - set position to exact boundary
+          newX = containerLeftEdge;
+          setDirection(1);
+        } else if (petRightEdge >= containerRightEdge) {
+          // Hit right wall - set position so right edge touches boundary
+          newX = containerRightEdge - petSize;
+          setDirection(-1);
+        }
+        
+        // Random direction change occasionally (very rare)
+        if (Math.random() > 0.998) {
+          setDirection(prev => -prev);
+        }
+
+        return { x: newX, y: prev.y };
+      });
+      
+      // Update walk cycle for animation (8 frames)
+      setWalkCycle(prev => (prev + 1) % 8);
+    }, 100);
+
+    return () => clearInterval(walkInterval);
+  }, [direction, petSize, stage, containerSize.width, isJumping, isFlying]);
+
+  // Jump function
+  const performJump = () => {
+    if (isJumping || isFlying) return;
+    
+    setIsJumping(true);
+    
+    const jumpHeight = 80;
+    const jumpDuration = 1000;
+    const startY = position.y;
+    const startTime = Date.now();
+    
+    const animateJump = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = elapsed / jumpDuration;
+      
+      if (progress < 1) {
+        const height = jumpHeight * Math.sin(progress * Math.PI);
+        setPosition(prev => ({ ...prev, y: Math.max(groundLevel - height, startY) }));
+        requestAnimationFrame(animateJump);
+      } else {
+        setPosition(prev => ({ ...prev, y: groundLevel }));
+        setIsJumping(false);
+      }
+    };
+    
+    requestAnimationFrame(animateJump);
+  };
+
+  // Fly function - triggered by upward shake
+  const performFly = () => {
+    if (isFlying || isJumping) return;
+    
+    setIsFlying(true);
+    
+    const flyHeight = 150;
+    const flyUpDuration = 800;
+    const flyDownDuration = 1000;
+    const startY = position.y;
+    const startTime = Date.now();
+    
+    const flyFrameInterval = setInterval(() => {
+      setFlyFrame(prev => (prev + 1) % 2);
+    }, 150);
+    
+    const animateFlyUp = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = elapsed / flyUpDuration;
+      
+      if (progress < 1) {
+        const height = flyHeight * (1 - Math.pow(1 - progress, 2));
+        setPosition(prev => ({ ...prev, y: Math.max(0, groundLevel - height) }));
+        requestAnimationFrame(animateFlyUp);
+      } else {
+        const fallStartTime = Date.now();
+        const fallStartY = position.y;
+        
+        const animateFlyDown = () => {
+          const fallElapsed = Date.now() - fallStartTime;
+          const fallProgress = fallElapsed / flyDownDuration;
+          
+          if (fallProgress < 1) {
+            const fallDistance = (groundLevel - fallStartY) * Math.pow(fallProgress, 2);
+            setPosition(prev => ({ ...prev, y: Math.min(groundLevel, fallStartY + fallDistance) }));
+            requestAnimationFrame(animateFlyDown);
+          } else {
+            clearInterval(flyFrameInterval);
+            setPosition(prev => ({ ...prev, y: groundLevel }));
+            setIsFlying(false);
+            setFlyFrame(0);
+          }
+        };
+        
+        requestAnimationFrame(animateFlyDown);
+      }
+    };
+    
+    requestAnimationFrame(animateFlyUp);
+  };
+
+  const getPetIcon = () => {
+    if (stage === "egg") return PetEggSvg;
+    
+    // Use fly frames when flying (for small/medium/large)
+    if (isFlying) {
+      const flyFrameIcon = getFlyFrame(stage, flyFrame);
+      if (flyFrameIcon) return flyFrameIcon;
+    }
+    
+    // Use walking frames when not jumping/flying
+    if (!isJumping) {
+      return getWalkFrame(stage, walkCycle, direction);
+    }
+    
+    // Default static icons for jumping or fallback
     switch (stage) {
-      case "egg":
-        return "🥚";
-      case "small":
-        return "🐣";
-      case "medium":
-        return "🐤";
-      case "large":
-        return "🐥";
-      case "buff":
-        return "💪🐔";
-      default:
-        return "🐣";
+      case "small": return PetSmallSvg;
+      case "medium": return PetMediumSvg;
+      case "large": return PetLargeSvg;
+      case "buff": return PetBuffSvg;
+      default: return PetSmallSvg;
     }
   };
 
@@ -309,13 +528,16 @@ const Pet = ({ stage, mood, message, startMessageTimer, strength, strengthMax, s
           height: petSize,
           left: position.x,
           top: position.y,
-          fontSize: petSize * 0.8,
           filter: mood < 40 ? "grayscale(30%)" : "none",
-          transform: `scaleX(${velocity.x > 0 ? 1 : -1})`,
-          animation: "bounce 0.5s infinite",
+          transform: `scaleX(${direction > 0 ? 1 : -1})`,
+          transition: isJumping ? "none" : "transform 0.2s"
         }}
       >
-        {getPetEmoji()}
+        <img 
+          src={getPetIcon()} 
+          alt={`Pet ${stage}`}
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
 
       {/* displayedMessage prefers manualMessage -> autoMessage -> parent message */}
