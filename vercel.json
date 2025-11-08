@@ -1,8 +1,0 @@
-{
-    "rewrites": [
-        {
-            "destination": "https://back-end-tasw.onrender.com/:path*",
-            "source": "/api/:path*"
-        }
-    ]
-}
