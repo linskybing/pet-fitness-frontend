@@ -297,7 +297,6 @@ const Index = () => {
             <div className="max-w-md mx-auto space-y-4">
                             {/* Stats */}
               <Card className="p-6 space-y-4" style={{ backgroundColor: 'var(--tp-white)', borderColor: 'var(--tp-primary-200)' }}>
-                <h3 className="tp-h3-semibold" style={{ color: 'var(--tp-grayscale-800)' }}>能力值</h3>
                 <StatBar
                   label="力量值"
                   value={currentLevelStrength}
