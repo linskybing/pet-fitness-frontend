@@ -70,18 +70,10 @@ function FlyToLocation({ target, questId, onComplete }: {
       // 立即設置視角，不要動畫效果
       map.setView(target, 16, { animate: false });
       
-      // 找到對應的標記並打開 popup
+      // 直接通知完成，不自動打開 popup（用戶可以自己點擊）
       setTimeout(() => {
-        map.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker) {
-            const pos = layer.getLatLng();
-            if (pos.lat === target[0] && pos.lng === target[1]) {
-              layer.openPopup();
-            }
-          }
-        });
         onComplete();
-      }, 200);
+      }, 100);
     } else {
       onComplete();
     }

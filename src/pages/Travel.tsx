@@ -117,15 +117,18 @@ const Travel = () => {
   });
 
   const handleAcceptQuest = (quest: QuestLocation) => {
-    // 直接將選中的任務設為進行中，不影響其他任務
+    // 將其他進行中的任務取消，只保留新接受的任務
     setQuests(prev => prev.map(q => {
+      if (q.status === "in-progress") {
+        return { ...q, status: "available" as const };
+      }
       if (q.id === quest.id) {
         return { ...q, status: "in-progress" as const };
       }
       return q;
     }));
     toast.success(`已接受任務：${quest.name}`, {
-      description: "請前往目的地完成打卡！可同時接受多個任務。"
+      description: "請前往目的地完成打卡！之前的任務已自動取消。"
     });
   };
 
