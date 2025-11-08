@@ -32,7 +32,7 @@ const Exercise: React.FC = () => {
   // walking: mean mag: 3.35, std:1.21, max:6.45, peaks:22, cadence:2.76Hz
   // jumping: mean mag: 20.85, std:16.24, max:83.68, peaks:18, cadence:2.26Hz
   // Derived recommended thresholds (hard-coded)
-  const WALK_CAL = { mean: 3.35, std: 1.21, max: 6.45, peaks: 22, cadence: 1.34 };
+  const WALK_CAL = { mean: 2.35, std: 1.21, max: 6.45, peaks: 22, cadence: 1 };
   const JUMP_CAL = { mean: 20.85, std: 16.24, max: 83.68, peaks: 18, cadence: 1.13 };
 
   // Use recommended thresholds derived from calibration
