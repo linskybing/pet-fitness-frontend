@@ -171,8 +171,17 @@ const Exercise: React.FC = () => {
   // 載入今日累計數據
   useEffect(() => {
     if (pet) {
-      setDailyMinutes(Math.floor((pet.daily_exercise_seconds || 0) / 60));
-      setDailySteps(pet.daily_steps || 0);
+      const exerciseSeconds = pet.daily_exercise_seconds ?? 0;
+      const steps = pet.daily_steps ?? 0;
+      
+      console.log('Exercise - Loading daily stats:', {
+        daily_exercise_seconds: exerciseSeconds,
+        daily_steps: steps,
+        calculated_minutes: Math.floor(exerciseSeconds / 60)
+      });
+      
+      setDailyMinutes(Math.floor(exerciseSeconds / 60));
+      setDailySteps(steps);
     }
   }, [pet]);
 
@@ -325,6 +334,11 @@ const Exercise: React.FC = () => {
       })
         .then(async (result) => {
           console.log("Exercise result:", result);
+          console.log("Exercise result pet data:", {
+            daily_exercise_seconds: result.pet?.daily_exercise_seconds,
+            daily_steps: result.pet?.daily_steps
+          });
+          
           // 計算力量增長 = 運動後力量 - 運動前力量
           const strengthAfter = result.pet?.strength || 0;
           const strengthGained = strengthAfter - strengthBefore;
