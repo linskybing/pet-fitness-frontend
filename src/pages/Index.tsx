@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import Pet from "@/components/Pet";
 import StatBar from "@/components/StatBar";
 import ActionButton from "@/components/ActionButton";
-import DailyQuests from "@/components/DailyQuests";
 import { Dumbbell, Map } from "lucide-react";
 import chickenSport from "@/assets/image/chicken_sport.png";
 import chickenTravel from "@/assets/image/chicken_travel.png";
@@ -453,11 +452,6 @@ const Index = () => {
                   onClick={() => navigate("/travel")}
                   variant="accent"
                 />
-              </div>
-
-              {/* Daily Quests */}
-              <div className="mt-4">
-                <DailyQuests userId={userId} onQuestCompleted={refreshPet} />
               </div>
             </div>
           </main>
