@@ -84,7 +84,7 @@ export function AppSidebar() {
   }, [userId]);
 
   const handleClaimReward = async (questId: number) => {
-    if (claiming !== null || completedQuests.has(questId)) return; // 防止重複領取
+    if (claiming !== null) return; // 防止重複點擊
 
     setClaiming(questId);
     try {
@@ -93,13 +93,12 @@ export function AppSidebar() {
         const rewards = result.rewards;
         toast.success(`任務完成！💪 +${rewards?.strength || 0}, ⚡ +${rewards?.stamina || 0}, 😊 +${rewards?.mood || 0}`);
 
-        // 重新載入任務狀態
-        const data = await getUserDailyQuests(userId);
-        const completed = new Set<number>();
-        if (data.quest_1_completed) completed.add(1);
-        if (data.quest_2_completed) completed.add(2);
-        if (data.quest_3_completed) completed.add(3);
-        setCompletedQuests(completed);
+        // 領取成功後,從完成列表中移除(後端已經將狀態改為false防止重複領取)
+        setCompletedQuests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(questId);
+          return newSet;
+        });
 
         await refreshPet();
       } else {
