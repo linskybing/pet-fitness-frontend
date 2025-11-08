@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useUser } from "@/hooks/useUser";
 import { useLocation } from "@/hooks/useLocation";
 import { useManualRain } from "@/hooks/useWeather";
-import { logExercise, updateUserPet } from "@/lib/api";
+import { logExercise, updateUserPet, updateExerciseStats } from "@/lib/api";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -345,6 +345,15 @@ const Exercise: React.FC = () => {
 
           if (result.breakthrough_required) {
             toast.info("恭喜達到突破等級！請前往旅遊完成突破任務");
+          }
+
+          // 更新運動統計數據（累計時間和步數）
+          try {
+            await updateExerciseStats(userId, duration, steps);
+            console.log("Exercise stats updated successfully");
+          } catch (error) {
+            console.error("Failed to update exercise stats:", error);
+            // 不影響主流程，靜默處理
           }
 
           // 刷新寵物數據

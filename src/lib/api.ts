@@ -108,6 +108,40 @@ export interface BreakthroughResult {
     message: string;
 }
 
+// 每日任務相關
+export interface DailyQuest {
+    id: number;
+    title: string;
+    description: string;
+    quest_type: string;  // 'exercise' | 'steps' | 'location'
+    target_value: number;
+    reward_strength: number;
+    reward_stamina: number;
+    reward_mood: number;
+    created_at: string;
+}
+
+export interface UserDailyQuest {
+    id: number;
+    user_id: string;
+    quest_id: number;
+    date: string;
+    is_completed: boolean;
+    current_progress: number;
+    quest: DailyQuest;
+}
+
+// 累計統計相關
+export interface ExerciseStats {
+    user_id: string;
+    total_exercise_time: number;  // 總運動時間（秒）
+    total_steps: number;  // 總步數
+    today_exercise_time: number;  // 今日運動時間（秒）
+    today_steps: number;  // 今日步數
+    this_week_exercise_time: number;  // 本週運動時間（秒）
+    this_week_steps: number;  // 本週步數
+}
+
 export interface TravelCheckin {
     id: number;
     user_id: string;  // References User.id which is a string
@@ -308,4 +342,90 @@ export function getStageName(stage: number): "egg" | "small" | "medium" | "large
         4: "buff",
     };
     return stageMap[stage] || "small";
+}
+
+// ==================
+// 每日任務 API
+// ==================
+
+// 獲取用戶的每日任務列表
+export async function getUserDailyQuests(userId: string): Promise<UserDailyQuest[]> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/daily-quests`);
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to get daily quests");
+    }
+    return response.json();
+}
+
+// 更新每日任務進度
+export async function updateDailyQuestProgress(
+    userId: string,
+    questId: number,
+    progress: number
+): Promise<UserDailyQuest> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/daily-quests/${questId}/progress`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ progress }),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to update quest progress");
+    }
+    return response.json();
+}
+
+// 完成每日任務並領取獎勵（新版 API）
+export async function completeDailyQuestV2(
+    userId: string,
+    questId: number
+): Promise<{ quest: UserDailyQuest; pet: Pet }> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/daily-quests/${questId}/complete`, {
+        method: "POST",
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to complete quest");
+    }
+    return response.json();
+}
+
+// ==================
+// 運動統計 API
+// ==================
+
+// 獲取用戶的運動統計數據
+export async function getExerciseStats(userId: string): Promise<ExerciseStats> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/exercise-stats`);
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to get exercise stats");
+    }
+    return response.json();
+}
+
+// 更新運動統計（運動結束時調用）
+export async function updateExerciseStats(
+    userId: string,
+    exerciseTime: number,
+    steps: number
+): Promise<ExerciseStats> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/exercise-stats`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            exercise_time: exerciseTime,
+            steps: steps,
+        }),
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to update exercise stats");
+    }
+    return response.json();
 }
