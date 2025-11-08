@@ -22,12 +22,14 @@ import {
 import { Input } from "@/components/ui/input";
 import TPButton from "@/components/TPButton/TPButton";
 import { useUser } from "@/hooks/useUser";
+import { useManualRain } from "@/hooks/useWeather";
 import { updateUserPet, performDailyCheck, getStageName as getAPIStageNameFunc } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
   const { userId, pet, refreshPet, isLoading } = useUser();
+  const { manualRain } = useManualRain();
   const { toast } = useToast();
   const [editingName, setEditingName] = useState("");
   const [namePopoverOpen, setNamePopoverOpen] = useState(false);
@@ -35,6 +37,14 @@ const Index = () => {
   const [hasCheckedDaily, setHasCheckedDaily] = useState(false);
   const [entranceStage, setEntranceStage] = useState<'egg' | 'hatching' | 'done'>('egg');
   const [typedText, setTypedText] = useState("");
+
+  // Rain effect - 使用全局的 manualRain 狀態
+  const isRaining = manualRain;
+
+  // Debug: 檢查 rain 狀態
+  useEffect(() => {
+    console.log('Index.tsx - manualRain:', manualRain, 'isRaining:', isRaining);
+  }, [manualRain, isRaining]);
 
   // Perform daily check when component mounts
   useEffect(() => {
@@ -76,6 +86,8 @@ const Index = () => {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Rain effect 現在使用全局 useManualRain hook，不需要 localStorage listener
 
   const getStageName = (stage: number) => {
     const stageNames: Record<number, string> = {
@@ -186,9 +198,48 @@ const Index = () => {
   const petStage = getAPIStageNameFunc(pet.stage);
   const currentLevelStrength = pet.strength % 120;
 
+  // Rain animation component
+  const RainAnimation = () => {
+    if (!isRaining) return null;
+
+    return (
+      <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+        <style>{`
+          @keyframes rain-fall {
+            0% { transform: translateY(-100vh) rotate(10deg); opacity: 0.6; }
+            100% { transform: translateY(100vh) rotate(10deg); opacity: 0; }
+          }
+          .rain-drop {
+            position: absolute;
+            width: 2px;
+            height: 15px;
+            background: linear-gradient(to bottom, rgba(173, 216, 230, 0.8), rgba(135, 206, 235, 0.4));
+            border-radius: 0 0 2px 2px;
+            animation: rain-fall linear infinite;
+          }
+        `}</style>
+        {/* Generate multiple rain drops */}
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div
+            key={i}
+            className="rain-drop"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDuration: `${0.5 + Math.random() * 1}s`,
+              animationDelay: `${Math.random() * 2}s`,
+              height: `${10 + Math.random() * 10}px`,
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full" style={{ backgroundColor: 'var(--tp-primary-50)' }}>
+        {/* Rain Animation */}
+        <RainAnimation />
         {/* Entrance Animation: egg rotate -> hatch -> pop into small */}
         {showEntrance && (
           <div
@@ -244,7 +295,7 @@ const Index = () => {
           {/* Header */}
           <header
             className="h-16 flex items-center px-4 border-b"
-            style={{ 
+            style={{
               backgroundColor: '#EDF8FA',
               borderColor: 'var(--tp-primary-200)'
             }}
@@ -315,7 +366,7 @@ const Index = () => {
 
           <main className="flex-1 p-4 overflow-auto">
             <div className="max-w-md mx-auto space-y-4">
-                            {/* Stats */}
+              {/* Stats */}
               <Card className="p-6 space-y-4" style={{ backgroundColor: 'var(--tp-white)', borderColor: 'var(--tp-primary-200)' }}>
                 <StatBar
                   label="力量值"
