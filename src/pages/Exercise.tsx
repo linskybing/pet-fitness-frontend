@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/useUser";
 import { useLocation } from "@/hooks/useLocation";
+import { useManualRain } from "@/hooks/useWeather";
 import { logExercise, updateUserPet } from "@/lib/api";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ const Exercise: React.FC = () => {
   const navigate = useNavigate();
   const { userId, pet, refreshPet } = useUser();
   const { getLocation } = useLocation();
+  const { manualRain, setManualRain } = useManualRain();
 
   const [isExercising, setIsExercising] = useState(false);
   const isExercisingRef = useRef(false);
@@ -24,6 +26,14 @@ const Exercise: React.FC = () => {
   const durationIntervalRef = useRef<number | null>(null);
 
   const [steps, setSteps] = useState(0);
+
+  // Wake Lock 相關
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  // 螢幕鎖定模式 (防止誤觸)
+  const [isScreenLocked, setIsScreenLocked] = useState(false);
+  const unlockTimerRef = useRef<number | null>(null);
+  const [unlockProgress, setUnlockProgress] = useState(0);
 
   // 開發者模式
   const [devMode, setDevMode] = useState(false);
@@ -211,9 +221,44 @@ const Exercise: React.FC = () => {
     }
   };
 
+  // 螢幕鎖定相關函數
+  const handleLockScreen = () => {
+    setIsScreenLocked(true);
+    toast.info("螢幕已鎖定，長按解鎖按鈕 2 秒解鎖");
+  };
+
+  const handleUnlockStart = () => {
+    if (!isScreenLocked) return;
+
+    let progress = 0;
+    unlockTimerRef.current = window.setInterval(() => {
+      progress += 5;
+      setUnlockProgress(progress);
+
+      if (progress >= 100) {
+        if (unlockTimerRef.current) {
+          clearInterval(unlockTimerRef.current);
+          unlockTimerRef.current = null;
+        }
+        setIsScreenLocked(false);
+        setUnlockProgress(0);
+        toast.success("螢幕已解鎖");
+      }
+    }, 100); // 每 100ms 增加 5%，總共 2 秒
+  };
+
+  const handleUnlockEnd = () => {
+    if (unlockTimerRef.current) {
+      clearInterval(unlockTimerRef.current);
+      unlockTimerRef.current = null;
+    }
+    setUnlockProgress(0);
+  };
+
   const stopExercise = () => {
     setIsExercising(false);
     isExercisingRef.current = false;
+    setIsScreenLocked(false); // 停止運動時解除鎖定
 
     // 記錄運動前的力量值
     const strengthBefore = pet?.strength || 0;
@@ -555,6 +600,58 @@ const Exercise: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-game-bg p-4">
+      {/* 鎖定畫面覆蓋層 */}
+      {isScreenLocked && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <div className="text-center space-y-8 px-6">
+            <div className="text-6xl mb-4">🔒</div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold text-white">螢幕已鎖定</h2>
+              <p className="text-lg text-gray-300">運動進行中...</p>
+            </div>
+
+            {/* 運動數據顯示 */}
+            <div className="grid grid-cols-2 gap-6 my-8">
+              <div className="bg-white/10 rounded-lg p-6 text-center backdrop-blur-sm">
+                <div className="text-4xl font-bold text-white">{duration}秒</div>
+                <div className="text-sm text-gray-300 mt-2">運動時長</div>
+              </div>
+              <div className="bg-white/10 rounded-lg p-6 text-center backdrop-blur-sm">
+                <div className="text-4xl font-bold text-white">{steps}</div>
+                <div className="text-sm text-gray-300 mt-2">步數</div>
+              </div>
+            </div>
+
+            {/* 解鎖按鈕 */}
+            <div className="space-y-4">
+              <p className="text-white text-lg">長按下方按鈕 2 秒解鎖</p>
+              <button
+                onTouchStart={handleUnlockStart}
+                onTouchEnd={handleUnlockEnd}
+                onMouseDown={handleUnlockStart}
+                onMouseUp={handleUnlockEnd}
+                onMouseLeave={handleUnlockEnd}
+                className="relative w-64 h-20 mx-auto bg-white/20 rounded-full text-white text-xl font-semibold overflow-hidden backdrop-blur-sm active:bg-white/30 transition-colors"
+              >
+                <div
+                  className="absolute left-0 top-0 h-full bg-green-500/50 transition-all duration-100"
+                  style={{ width: `${unlockProgress}%` }}
+                />
+                <span className="relative z-10">
+                  {unlockProgress > 0 ? `解鎖中 ${unlockProgress}%` : '按住解鎖'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-md mx-auto space-y-4">
         <Button variant="ghost" onClick={() => navigate("/")} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -654,6 +751,18 @@ const Exercise: React.FC = () => {
               </>
             )}
           </Button>
+
+          {/* 鎖定按鈕 (僅在運動中顯示) */}
+          {isExercising && !isScreenLocked && (
+            <Button
+              size="lg"
+              className="w-full"
+              variant="outline"
+              onClick={handleLockScreen}
+            >
+              🔒 鎖定螢幕 (防止誤觸)
+            </Button>
+          )}
 
           {/* Minimal user-facing controls (compact) */}
           <div className="flex items-center justify-between mt-3 text-sm">
