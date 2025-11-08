@@ -90,23 +90,27 @@ const Welcome = () => {
 
                 <div className="space-y-4">
                     {/* Debug Info */}
-                    <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'var(--tp-grayscale-100)', borderColor: 'var(--tp-grayscale-300)', borderWidth: '1px' }}>
-                        <p className="tp-body-small" style={{ color: 'var(--tp-grayscale-600)' }}>
-                            Debug: {townpassUser ? `User ID: ${townpassUser.id}` : 'No user'}
+                    <div className="text-left p-3 rounded-lg" style={{ backgroundColor: 'var(--tp-grayscale-100)', borderColor: 'var(--tp-grayscale-300)', borderWidth: '1px' }}>
+                        <p className="tp-body-semibold mb-2" style={{ color: 'var(--tp-grayscale-700)' }}>
+                            Debug Info:
                         </p>
+                        <div className="space-y-1 text-xs font-mono" style={{ color: 'var(--tp-grayscale-600)' }}>
+                            <p>User ID: {townpassUser?.id || 'No user'}</p>
+                            <p>User Name: {townpassUser?.name || 'N/A'}</p>
+                            <p>Loading: {isTownPassLoading ? 'Yes' : 'No'}</p>
+                            <p>townpass_channel: {(window as any).townpass_message_channel ? 'Yes' : 'No'}</p>
+                            <p>TownPass obj: {(window as any).TownPass ? 'Yes' : 'No'}</p>
+                            <p>webkit: {(window as any).webkit ? 'Yes' : 'No'}</p>
+                            <p>ReactNative: {(window as any).ReactNativeWebView ? 'Yes' : 'No'}</p>
+                            <p>Window keys with 'town': {Object.keys(window).filter(k => k.toLowerCase().includes('town')).join(', ') || 'None'}</p>
+                        </div>
                         <Button
                             onClick={() => {
-                                console.log('Window objects:', {
-                                    townpass_message_channel: !!(window as any).townpass_message_channel,
-                                    TownPass: !!(window as any).TownPass,
-                                    webkit: !!(window as any).webkit,
-                                    ReactNativeWebView: !!(window as any).ReactNativeWebView,
-                                });
                                 requestTownPassUser();
                             }}
                             variant="outline"
                             size="sm"
-                            className="mt-2"
+                            className="mt-2 w-full"
                         >
                             重新檢測 TownPass
                         </Button>
